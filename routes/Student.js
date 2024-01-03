@@ -1,11 +1,14 @@
 const axios = require('axios');
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 // const StudentModel = require('../models/StudentModel');
 const SubjectClassModel = require('../models/SubjectClassModel');
 const AllStudentModel = require('../models/All_Students');
 const BatchModel = require('../models/BatchModel');
 const ApiKey = require('../models/ApiKey');
+const Log = require('../models/Log');
+
 
 
 // const  StudentSubjectData= async (arr) => { 
@@ -60,7 +63,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const StudentSubjectData = async (data) => {
   try {
-    const apiKey= await getApiKey();
+    const apiKey = await getApiKey();
 
     for (const item of data) {
       const class_id = item.class_id;
@@ -176,7 +179,7 @@ router.post('/student_subject_data', async (req, res) => {
 
 async function saveSubjDataToDatabase() {
   try {
-    const apiKey= await getApiKey();
+    const apiKey = await getApiKey();
 
     const response = await axios.get(`https://mitsde.edmingle.com/nuSource/api/v1/short/masterbatch?status=0&batch_period=5&page=1&per_page=3000&search=&organization_id=4`, {
       headers: {
@@ -207,7 +210,7 @@ async function saveSubjDataToDatabase() {
           console.log(class_id, subject_id, class_name, bundle_name, subject_name, bundle_id)
           // Extract relevant data and create/update records in the database
           await SubjectClassModel.findOrCreate({
-            where: { subject_id, program_id: bundle_id, batch_id:class_id },
+            where: { subject_id, program_id: bundle_id, batch_id: class_id },
             defaults: {
               program_id: bundle_id,
               program_name: bundle_name,
@@ -299,9 +302,9 @@ router.get('/subject-class', async (req, res) => {
 
 
 
-router.post('/save_All_Students', async (req, res) => {
+router.post('/bulk_create_save_All_Students', async (req, res) => {
   try {
-    const apiKey= await getApiKey();
+    const apiKey = await getApiKey();
     const response = await axios.get(`https://mitsde-api.edmingle.com/nuSource/api/v1/organization/students?organization_id=2&search=&is_archived=0&page=1&per_page=50000`, {
       headers: {
         'orgid': 3,
@@ -317,6 +320,58 @@ router.post('/save_All_Students', async (req, res) => {
   }
 });
 
+
+router.post('/daly_update/save_All_Students', async (req, res) => {
+  try {
+    const apiKey = await getApiKey();
+    const response = await axios.get(`https://mitsde-api.edmingle.com/nuSource/api/v1/organization/students?organization_id=2&search=&is_archived=0&page=1&per_page=50000`, {
+      headers: {
+        'orgid': 3,
+        'apikey': apiKey,
+      },
+    });
+    const studentsData = response.data.students;
+
+    // Iterate over studentsData and upsert each student
+    for (const student of studentsData) {
+      await AllStudentModel.upsert(student, { where: { user_id: student.user_id } });
+    }
+
+    res.json({ code: 200, message: 'Success' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ code: 500, message: 'Internal Server Error' });
+  }
+});
+
+const updateAllStudents = async () => {
+  try {
+    const apiKey = await getApiKey();
+    const response = await axios.get(`https://mitsde-api.edmingle.com/nuSource/api/v1/organization/students?organization_id=2&search=&is_archived=0&page=1&per_page=50000`, {
+      headers: {
+        'orgid': 3,
+        'apikey': apiKey,
+      },
+    });
+    const studentsData = response.data.students;
+
+    // Iterate over studentsData and upsert each student
+    for (const student of studentsData) {
+      await AllStudentModel.upsert(student, { where: { user_id: student.user_id } });
+    }
+    await Log.create({
+      message: `Error updating Student`,
+      level: "Every-day-Student-Update-error",
+    });
+  } catch (error) {
+    console.error('Error updating all students data:', error);
+  }
+};
+
+
+setInterval(() => {
+  updateAllStudents();
+}, 24 * 60 * 60 * 1000);
 
 router.get('/getAllStudents', async (req, res) => {
   try {
