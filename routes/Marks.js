@@ -450,6 +450,9 @@ router.post("/student_subject_marks_data", async (req, res) => {
     }
 });
 
+
+
+
 // const StudentSubjectMarksData = async (data, res) => {
 //     try {
 //         for (const item of data) {

@@ -59,6 +59,8 @@ const Log = require('../models/Log');
 //   }
 
 // }
+
+
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const StudentSubjectData = async (data) => {
@@ -369,9 +371,9 @@ const updateAllStudents = async () => {
 };
 
 
-setInterval(() => {
-  updateAllStudents();
-}, 24 * 60 * 60 * 1000);
+// setInterval(() => {
+//   updateAllStudents();
+// }, 24 * 60 * 60 * 1000);
 
 router.get('/getAllStudents', async (req, res) => {
   try {

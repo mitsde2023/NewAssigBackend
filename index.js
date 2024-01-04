@@ -11,6 +11,9 @@ const Marks_Routes = require("./routes/Marks")
 const sequelize = require('./config');
 const FlippedStudent = require('./models/FlippedStudent');
 const StudentSubCode = require('./models/SubjectCode');
+const FlattenedDataModel = require('./models/FlattenedDataModel');
+const All_Students = require('./models/All_Students');
+const StudentSubWiseMarks = require('./models/StudentSubWiseMarks.js');
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 // const FlattenedDataModel = require('./models/FlattenedDataModel');
@@ -135,6 +138,131 @@ app.get('/subject_codes', async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
+
+
+
+const StudentSubjectWiseData = async () => {
+  try {
+    // Fetch marks data
+    const marksData = await FlattenedDataModel.findAll();
+    console.log(marksData, 148);
+
+    // Fetch students data
+    const studentsData = await All_Students.findAll();
+    console.log(studentsData, 152);
+
+    const subjectCodes = await StudentSubCode.findAll();
+    console.log(subjectCodes, 155);
+
+    // const flippedStudent = await FlippedStudent.findAll();
+    // console.log(flippedStudent, 158);
+
+    // Normalize function to convert to lowercase and remove spaces
+    const normalizeString = (str) => str.toLowerCase().replace(/\s/g, '');
+
+    // Map over marksData and combine with studentsData
+    const combinedData = marksData.map((marksItem) => {
+      const matchingStudent = studentsData.find(
+        (student) => student.user_id === marksItem.user_id
+      );
+
+      return {
+        ...marksItem.dataValues,
+        registration_number: matchingStudent
+          ? matchingStudent.registration_number
+          : "SWM Reg_No NF",
+        email: matchingStudent ? matchingStudent.email : "SWM Email NF",
+        name: matchingStudent ? matchingStudent.name : "SWM name NF",
+      };
+    });
+
+    console.log(combinedData, 165);
+
+    const finalData = combinedData.map((item) => {
+      const normalizedItemName = normalizeString(item.subject_name);
+      const matchingSubjectName = subjectCodes.find(
+        (sub) => normalizeString(sub.Subject) === normalizedItemName
+      );
+
+      return {
+        ...item,
+        subject_code: matchingSubjectName ? matchingSubjectName.Code : "Subject Name Not Match",
+      };
+    });
+
+    await StudentSubWiseMarks.bulkCreate(finalData);
+    console.log('Data saved successfully.');
+  } catch (error) {
+    console.error('Error fetching or saving data:', error);
+  }
+};
+
+
+// StudentSubjectWiseData();
+
+
+app.get('/api/studentSubWiseMarks', async (req, res) => {
+  try {
+    const marksData = await StudentSubWiseMarks.findAll();
+    res.json(marksData);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/api/studentSubWiseMarks/calloperation', async (req, res) => {
+  try {
+    // res.json(marksData);
+    await StudentSubjectWiseData();
+    await  UpdateStudentSubjectWiseData();
+    res.json("operation done...");
+
+  } catch (error) {
+    console.error('Error fetching or saving data:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+const UpdateStudentSubjectWiseData = async () => {
+  try {
+    // Fetch all records from FlippedStudent
+    const flippedStudents = await FlippedStudent.findAll();
+    console.log(flippedStudents, 158);
+
+    // Fetch all records from StudentSubWiseMarks
+    const studentFinalData = await StudentSubWiseMarks.findAll();
+    console.log(studentFinalData);
+
+    // Update subject_code for each registrationNo in StudentSubWiseMarks
+    for (const flippedStudent of flippedStudents) {
+      const { registrationNo } = flippedStudent;
+
+      // Find all records with matching registration_number
+      const matchingRecords = studentFinalData.filter(
+        (record) => record.registration_number === registrationNo
+      );
+
+      // Update subject_code for each matching record
+      for (const record of matchingRecords) {
+        const existingSubjectCode = record.subject_code;
+        const modifiedSubjectCode = `F${existingSubjectCode}`;
+
+        // Update the subject_code in the database
+        await StudentSubWiseMarks.update(
+          { subject_code: modifiedSubjectCode },
+          { where: { id: record.id } }
+        );
+      }
+    }
+    console.log('Data updated successfully.');
+  } catch (error) {
+    console.error('Error updating data:', error);
+  }
+};
+
+// Call the update function
+// UpdateStudentSubjectWiseData();
 
 const PORT = process.env.PORT || 7000;
 
