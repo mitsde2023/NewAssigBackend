@@ -12,6 +12,14 @@ const FlattenedDataModel = sequelize.define('FlattenedDataModel', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
+    // program_name: {
+    //     type: DataTypes.STRING,
+    //     allowNull: true
+    // },
+    // batch_name: {
+    //     type: DataTypes.STRING,
+    //     allowNull: true
+    // },
     subject_name: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -20,6 +28,7 @@ const FlattenedDataModel = sequelize.define('FlattenedDataModel', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
+
     // name: {
     //     type: DataTypes.STRING,
     //     allowNull: true,
@@ -28,6 +37,7 @@ const FlattenedDataModel = sequelize.define('FlattenedDataModel', {
     //     type: DataTypes.STRING,
     //     allowNull: true,
     // },
+
     assignments: {
         type: DataTypes.JSON, // Assuming assignments is an array of objects
         allowNull: true,

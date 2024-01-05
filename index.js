@@ -4,7 +4,6 @@ const xlsx = require('xlsx');
 const multer = require('multer');
 const cors = require('cors');
 const Course_Subject_routes = require('./routes/Course_Subject');
-
 // const Class_Routes=require('./routes/Class')
 const Student_Routes = require('./routes/Student')
 const Marks_Routes = require("./routes/Marks")
@@ -211,11 +210,32 @@ app.get('/api/studentSubWiseMarks', async (req, res) => {
   }
 });
 
+app.get('/getStudentDatawithsubjectCode', async (req, res) => {
+  try {
+    // Fetch data from the database with specific fields
+    const studentData = await StudentSubWiseMarks.findAll({
+      attributes: ['subject_name', 'subject_code', 'registration_number', 'email', 'name', 'assignments', 'updatedAt'],
+    });
+
+    // Return the data as JSON
+    res.json({
+      success: true,
+      data: studentData,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal Server Error',
+    });
+  }
+});
+
+
 app.get('/api/studentSubWiseMarks/calloperation', async (req, res) => {
   try {
-    // res.json(marksData);
     await StudentSubjectWiseData();
-    await  UpdateStudentSubjectWiseData();
+    await UpdateStudentSubjectWiseData();
     res.json("operation done...");
 
   } catch (error) {
@@ -261,10 +281,109 @@ const UpdateStudentSubjectWiseData = async () => {
   }
 };
 
-// Call the update function
-// UpdateStudentSubjectWiseData();
 
-const PORT = process.env.PORT || 7000;
+
+const subjectsArray = [
+  { subject_code: 'FS0W01', Subject: 'Digital Marketing' },
+  { subject_code: 'FS0W01', Subject: 'Digital Marketing FS0W01' },
+  { subject_code: 'FS1F01', Subject: 'Foundations of Business Management' },
+  { subject_code: 'FS1F01', Subject: 'Foundations of Business Management (HR, Marketing, Finance & Operations)' },
+  { subject_code: 'FS1F01', Subject: 'FoundationsofBusinessManagement(HR,Marketing,Finance&Operations)' },
+  { subject_code: 'FS1LA1', Subject: 'Legal Aspects of Business' },
+  { subject_code: 'FS2C07', Subject: 'Management Information System' },
+  { subject_code: 'FS2C10', Subject: 'Strategic Management' },
+  { subject_code: 'FS2SF2', Subject: 'Social Media analytics & future trends' },
+  { subject_code: 'FS2SF2', Subject: 'Social Media Analytics & Future Trends' },
+  { subject_code: 'FS2SF2', Subject: 'SocialMediaAnalytics&FutureTrends' },
+  { subject_code: 'FS2SS2', Subject: 'SEO & SEM' },
+  { subject_code: 'FS3El5', Subject: 'Social Media Marketing' },
+  { subject_code: 'FS3W05', Subject: 'Integrated Marketing Communication' },
+  { subject_code: 'FS3W06', Subject: 'Product & Brand Management' },
+  { subject_code: 'FS3W06', Subject: 'Product and Brand Management' },
+  { subject_code: 'FS2C11', Subject: 'Business Analytics' },
+  { subject_code: 'FS2DB1', Subject: 'Data Mining for Business Analytics' },
+  { subject_code: 'FS3EL4', Subject: 'Marketing Analytics' },
+  { subject_code: 'FS3EL6', Subject: 'Predictive Modeling' },
+  { subject_code: 'FS3FM4', Subject: 'Financial Analytics' },
+  { subject_code: 'FS3LSC1', Subject: 'Supply chain Analytics' }
+];
+
+subjectsArray.forEach(entry => {
+  entry.Subject = entry.Subject.replace(/\s/g, ''); // Remove spaces
+});
+
+app.get('/updatecode', async (req, res) => {
+    try {
+        const flipStuList = await FlippedStudent.findAll();
+        const registrationNumbers = flipStuList.map(student => student.registrationNo);
+        console.log(registrationNumbers, 268);
+
+        // Array to store updated data
+        const updatedDataArray = [];
+        const unmatchedDataArray = [];
+        const uniqueUnmatchedSubjects = new Set();
+
+        // Loop through each registration number
+        for (const regNo of registrationNumbers) {
+            // Find all records in StudentSubWiseMarks based on registration number
+            const stuFinalDataArray = await StudentSubWiseMarks.findAll({
+                where: {
+                    registration_number: regNo // Update with your actual field name
+                }
+            });
+
+            // Update subject_code in each found record
+            for (const stuFinalData of stuFinalDataArray) {
+                // Extract subject name from the subject_name field
+                const subjectName = stuFinalData.subject_name;
+
+                // Replace spaces and dashes with an empty string to match the format in the subjectsArray
+                const subjectnamewithoutdash = subjectName.replace(/[\s-]/g, '');
+
+                console.log(subjectnamewithoutdash, 310);
+
+                // Find the corresponding entry in subjectsArray
+                const subjectEntry = subjectsArray.find(entry => entry.Subject === subjectnamewithoutdash);
+                console.log(subjectEntry, 313);
+
+                // Update subject_code in the found record
+                if (subjectEntry) {
+                    stuFinalData.subject_code = subjectEntry.subject_code;
+                    await stuFinalData.save();
+                    updatedDataArray.push(stuFinalData);
+                } else {
+                    // If subjectEntry is not found, add the subject name to uniqueUnmatchedSubjects set
+                    uniqueUnmatchedSubjects.add(subjectName);
+                    unmatchedDataArray.push(subjectEntry)
+                }
+            }
+        }
+
+        // Convert uniqueUnmatchedSubjects set to an array
+        const uniqueUnmatchedSubjectsArray = Array.from(uniqueUnmatchedSubjects);
+
+        console.log(updatedDataArray.length, 293);
+        console.log(unmatchedDataArray.length, 294);
+        console.log(uniqueUnmatchedSubjectsArray.length, 295);
+        res.json({
+            message: 'Data updated successfully',
+            updatedData: updatedDataArray,
+            unmatchedData: unmatchedDataArray,
+            uniqueSubjects: uniqueUnmatchedSubjectsArray
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+
+
+
+
+
+const PORT = process.env.PORT || 7000;  
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
